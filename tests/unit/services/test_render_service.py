@@ -302,3 +302,72 @@ class TestResolveMtimeForAlignment:
             ts = render_service._resolve_mtime_for_alignment(config, "/tmp/video.mov")
 
         assert ts == 1723132380.0
+
+
+class TestNeedsPillarboxUsesSidecarCanvas:
+    """_needs_pillarbox must respect canvas dimensions from a custom XML template's sidecar
+    JSON. Without this, a custom 4K 4:3 template (3840x2880) was treated as the default
+    built-in layout (1920x1080), which scaled the video down."""
+
+    @pytest.fixture
+    def render_service(self):
+        from gpstitch.services.render_service import RenderService
+
+        return RenderService()
+
+    def _patch_video_probe(self, monkeypatch, width: int, height: int):
+        """Stub gopro-overlay video probing to report the given display dimensions."""
+        from gpstitch.services import metadata as metadata_mod
+
+        monkeypatch.setattr(metadata_mod, "get_video_rotation", lambda _p: 0)
+        monkeypatch.setattr(metadata_mod, "get_display_dimensions", lambda w, h, _r: (w, h))
+
+        fake_rec = SimpleNamespace(video=SimpleNamespace(dimension=SimpleNamespace(x=width, y=height)))
+
+        class FakeFFMPEGGoPro:
+            def __init__(self, *_args, **_kwargs):
+                pass
+
+            def find_recording(self, _p):
+                return fake_rec
+
+        import gopro_overlay.ffmpeg as gp_ffmpeg
+        import gopro_overlay.ffmpeg_gopro as gp_ffmpeg_gopro
+
+        monkeypatch.setattr(gp_ffmpeg, "FFMPEG", lambda: MagicMock())
+        monkeypatch.setattr(gp_ffmpeg_gopro, "FFMPEGGoPro", FakeFFMPEGGoPro)
+
+    def test_custom_xml_4k_4_3_no_pillarbox(self, render_service, tmp_path, monkeypatch):
+        """Video 3840x2880 with custom XML whose sidecar canvas is 3840x2880 → no pillarbox."""
+        xml_path = tmp_path / "Osmo6_Walking_4k_4_3.xml"
+        xml_path.write_text("<layout></layout>", encoding="utf-8")
+        (tmp_path / "Osmo6_Walking_4k_4_3.json").write_text(
+            '{"canvas_width": 3840, "canvas_height": 2880}', encoding="utf-8"
+        )
+
+        self._patch_video_probe(monkeypatch, 3840, 2880)
+
+        config = MagicMock()
+        config.layout = "xml"
+        config.layout_xml_path = str(xml_path)
+
+        result = render_service._needs_pillarbox("/fake/video.mp4", config)
+        assert result is None, f"Expected no pillarbox (matching aspect), got {result}"
+
+    def test_custom_xml_canvas_different_aspect_pillarboxes_to_sidecar(self, render_service, tmp_path, monkeypatch):
+        """16:9 video into a 4:3 sidecar canvas must pillarbox to the sidecar's dims."""
+        xml_path = tmp_path / "custom_4_3.xml"
+        xml_path.write_text("<layout></layout>", encoding="utf-8")
+        (tmp_path / "custom_4_3.json").write_text('{"canvas_width": 3840, "canvas_height": 2880}', encoding="utf-8")
+
+        self._patch_video_probe(monkeypatch, 3840, 2160)
+
+        config = MagicMock()
+        config.layout = "xml"
+        config.layout_xml_path = str(xml_path)
+
+        result = render_service._needs_pillarbox("/fake/video.mp4", config)
+        assert result is not None
+        canvas_w, canvas_h, video_w, video_h = result
+        assert (canvas_w, canvas_h) == (3840, 2880)
+        assert (video_w, video_h) == (3840, 2160)

@@ -197,7 +197,7 @@ class RenderService:
             from gopro_overlay.ffmpeg_gopro import FFMPEGGoPro
 
             from gpstitch.services.metadata import get_display_dimensions, get_video_rotation
-            from gpstitch.services.renderer import get_available_layouts
+            from gpstitch.services.renderer import _read_canvas_dims_from_sidecar, get_available_layouts
 
             # Get video dimensions
             ffmpeg = FFMPEG()
@@ -208,16 +208,26 @@ class RenderService:
                 recording.video.dimension.x, recording.video.dimension.y, rotation
             )
 
-            # Get canvas dimensions from layout
-            layout_info = None
-            for info in get_available_layouts():
-                if info.name == config.layout:
-                    layout_info = info
-                    break
-            if layout_info is None:
-                layout_info = get_available_layouts()[0]
+            # Canvas dimensions: prefer sidecar JSON of a custom XML template (matches the
+            # dims the user designed against and that generate_cli_command passes via
+            # --overlay-size). Fall back to named layout lookup. Without the sidecar branch
+            # a custom 3840x2880 template was treated as the first built-in (1920x1080) and
+            # the video was downscaled.
+            canvas_w = canvas_h = None
+            if config.layout_xml_path:
+                sidecar_dims = _read_canvas_dims_from_sidecar(config.layout_xml_path)
+                if sidecar_dims is not None:
+                    canvas_w, canvas_h = sidecar_dims
 
-            canvas_w, canvas_h = layout_info.width, layout_info.height
+            if canvas_w is None or canvas_h is None:
+                layout_info = None
+                for info in get_available_layouts():
+                    if info.name == config.layout:
+                        layout_info = info
+                        break
+                if layout_info is None:
+                    layout_info = get_available_layouts()[0]
+                canvas_w, canvas_h = layout_info.width, layout_info.height
 
             # Check if aspect ratios differ
             video_aspect = video_w / video_h
