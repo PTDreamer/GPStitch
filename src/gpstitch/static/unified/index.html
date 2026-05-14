@@ -119,6 +119,13 @@
 
                         <span class="toolbar-divider"></span>
 
+                        <label for="canvas-width">Canvas:</label>
+                        <input type="number" id="canvas-width" class="size-input" value="1920" min="100" max="7680" title="Canvas width (px)">
+                        <span>×</span>
+                        <input type="number" id="canvas-height" class="size-input" value="1080" min="100" max="4320" title="Canvas height (px)">
+
+                        <span class="toolbar-divider"></span>
+
                         <label for="template-select">Template:</label>
                         <select id="template-select">
                             <option value="">-- Select Template --</option>
@@ -178,7 +185,11 @@
                                 <strong>Canvas size doesn't match video resolution.</strong>
                                 Template canvas is <span class="canvas-dims"></span>, video is <span class="video-dims"></span>.
                                 Widgets will render at their designed pixel coordinates and may appear misplaced on the video frame.
-                                To fix: set the editor canvas to match the video resolution, or use a template designed for this video size.
+                                <div class="canvas-size-warning-actions">
+                                    <button id="btn-resize-canvas-to-video" type="button" class="btn btn-small">
+                                        Resize canvas to <span class="video-dims"></span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         <div id="canvas-viewport" class="canvas-viewport">

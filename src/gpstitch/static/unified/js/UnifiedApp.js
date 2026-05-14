@@ -384,6 +384,51 @@ class UnifiedApp {
             editorState.on('canvas:changed', () => this._updateCanvasSizeWarning());
         }
 
+        // Canvas size inputs (Advanced Mode toolbar). Mirror the legacy editor's controls
+        // so users can type a custom canvas size, not just match-to-video via the warning.
+        const canvasWidthInput = document.getElementById('canvas-width');
+        const canvasHeightInput = document.getElementById('canvas-height');
+        if (canvasWidthInput) {
+            canvasWidthInput.addEventListener('change', (e) => {
+                const width = parseInt(e.target.value, 10);
+                if (Number.isFinite(width) && width > 0) {
+                    editorState?.updateCanvas({ width });
+                }
+            });
+        }
+        if (canvasHeightInput) {
+            canvasHeightInput.addEventListener('change', (e) => {
+                const height = parseInt(e.target.value, 10);
+                if (Number.isFinite(height) && height > 0) {
+                    editorState?.updateCanvas({ height });
+                }
+            });
+        }
+        // Reflect external canvas changes (template load, "resize to video" button) back into the inputs.
+        if (window.editorState) {
+            const syncInputs = () => {
+                const c = editorState.layout?.canvas;
+                if (!c) return;
+                if (canvasWidthInput && canvasWidthInput.value !== String(c.width)) {
+                    canvasWidthInput.value = c.width;
+                }
+                if (canvasHeightInput && canvasHeightInput.value !== String(c.height)) {
+                    canvasHeightInput.value = c.height;
+                }
+            };
+            editorState.on('canvas:changed', syncInputs);
+            editorState.on('layout:changed', syncInputs);
+            syncInputs();
+        }
+
+        // "Resize canvas to video" button inside the mismatch warning banner.
+        // Unified Advanced Mode has no canvas-size input of its own — this button is the
+        // only way for users to act on the warning's advice.
+        const resizeCanvasBtn = document.getElementById('btn-resize-canvas-to-video');
+        if (resizeCanvasBtn) {
+            resizeCanvasBtn.addEventListener('click', () => this._resizeCanvasToVideo());
+        }
+
         // Export button
         const exportBtn = document.getElementById('btn-export');
         if (exportBtn) {
@@ -568,7 +613,28 @@ class UnifiedApp {
         const videoDimsEl = banner.querySelector('.video-dims');
         if (canvasDimsEl) canvasDimsEl.textContent = `${canvasW}\u00D7${canvasH}`;
         if (videoDimsEl) videoDimsEl.textContent = `${videoW}\u00D7${videoH}`;
+        // Also fill the .video-dims span embedded in the resize button (querySelector picks the
+        // first match; iterate to cover both label + button).
+        banner.querySelectorAll('.video-dims').forEach((el) => {
+            el.textContent = `${videoW}\u00D7${videoH}`;
+        });
         banner.classList.remove('hidden');
+    }
+
+    /**
+     * Resize the editor canvas to match the loaded video's resolution.
+     * Wired to the button inside the canvas-size mismatch warning banner; it's the
+     * only canvas-size control in unified Advanced Mode.
+     */
+    _resizeCanvasToVideo() {
+        if (!window.editorState) return;
+        const primary = this.state.getPrimaryFile?.();
+        const videoMeta = primary?.video_metadata;
+        const width = videoMeta?.width;
+        const height = videoMeta?.height;
+        if (!width || !height) return;
+        editorState.updateCanvas({ width, height });
+        // updateCanvas emits 'canvas:changed', which retriggers _updateCanvasSizeWarning.
     }
 
     /**
