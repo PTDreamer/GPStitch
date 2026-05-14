@@ -1,6 +1,6 @@
 # Release Notes
 
-## Version 0.17.0 — 14 May 2026
+## Version 0.16.0 — 14 May 2026
 
 ### 🆕 New
 
