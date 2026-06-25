@@ -296,6 +296,26 @@ class TestRoundtrip:
         assert len(restored.widgets[0].children) == 1
         assert restored.widgets[0].children[0].type == "text"
 
+    def test_metric_unit_label_survives_roundtrip(self, layout_factory, widget_factory):
+        """A custom metric_unit label/format must survive layout -> XML -> layout (issue #19).
+
+        The label/format is written as the element's inner text (e.g.
+        ``<component type="metric_unit" ...>Höhe({:~C})</component>``), not an
+        attribute, so the roundtrip must preserve it there.
+        """
+        widget = widget_factory(
+            widget_type="metric_unit",
+            properties={"metric": "alt", "units": "alt", "_text_content": "Höhe({:~C})"},
+        )
+        layout = layout_factory(widgets=[widget])
+
+        xml = xml_converter.layout_to_xml(layout)
+        assert "Höhe({:~C})" in xml  # written as element text
+
+        restored = xml_converter.xml_to_layout(xml, "Restored")
+        w = next(w for w in restored.widgets if w.type == "metric_unit")
+        assert w.properties.get("_text_content") == "Höhe({:~C})"
+
 
 class TestValueFormatting:
     """Tests for value formatting and parsing."""

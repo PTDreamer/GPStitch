@@ -241,6 +241,18 @@ class WidgetRegistry:
                     constraints=PropertyConstraints(default="kph"),
                     category="Data",
                 ),
+                PropertyDefinition(
+                    name="_text_content",
+                    label="Label / Format",
+                    type=PropertyType.STRING,
+                    description=(
+                        "Overlay label. {:~C} is replaced by the unit symbol (e.g. kph, m). "
+                        "Type any text for a fixed label — e.g. 'km/h', or combine: "
+                        "'Höhe({:~C})' → Höhe(m)."
+                    ),
+                    constraints=PropertyConstraints(default="{:~C}"),
+                    category="Content",
+                ),
             ]
             + _common_text_props(),
         )

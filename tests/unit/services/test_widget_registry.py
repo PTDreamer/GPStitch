@@ -24,6 +24,22 @@ class TestWidgetRegistryMetadata:
         assert metadata.type == "metric"
         assert metadata.category == WidgetCategory.METRICS
 
+    def test_metric_unit_exposes_editable_label_property(self):
+        """metric_unit's label/format template must be editable in the editor (issue #19).
+
+        The text inside a metric_unit (e.g. ``ALT({:~C})``) is what shows on the
+        overlay; without an editable property a user cannot localise it (e.g. to
+        ``Höhe({:~C})``). The converter already round-trips it via ``_text_content``.
+        """
+        from gpstitch.models.editor import PropertyType
+
+        metadata = widget_registry.get_metadata("metric_unit")
+        assert metadata is not None
+
+        label_props = [p for p in metadata.properties if p.name == "_text_content"]
+        assert label_props, "metric_unit should expose an editable label/format property (issue #19)"
+        assert label_props[0].type == PropertyType.STRING
+
     def test_get_metadata_moving_map(self):
         """Get metadata for moving_map widget."""
         metadata = widget_registry.get_metadata("moving_map")
