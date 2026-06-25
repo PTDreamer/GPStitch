@@ -34,6 +34,46 @@ class TestRendererPreview:
         assert width == 1920
         assert height == 1080
 
+    def test_preview_prefers_external_gpx_over_embedded_gps(
+        self, integration_test_video, integration_test_run_gpx, monkeypatch
+    ):
+        """Regression for issue #18: when a video has embedded GoPro GPS AND an
+        external GPX/FIT is provided, the preview must use the external track,
+        not the video's embedded GPS.
+
+        The fixtures are deliberately different recordings (the GoPro video and
+        the GPX are hundreds of km apart), so consuming the external loader is a
+        reliable signal that the external track — not the embedded GPS — drives
+        the preview.
+        """
+        from pathlib import Path
+
+        from gpstitch.services import renderer as renderer_module
+        from gpstitch.services.renderer import render_preview
+
+        # Spy on the external-timeseries loader to detect whether the GPX is used.
+        real_loader = renderer_module._load_external_timeseries
+        used_external: list[Path] = []
+
+        def spy(path, units):
+            used_external.append(Path(path))
+            return real_loader(path, units)
+
+        monkeypatch.setattr(renderer_module, "_load_external_timeseries", spy)
+
+        png_bytes, _, _ = render_preview(
+            file_path=integration_test_video,  # GoPro video WITH embedded GPS
+            layout="default-1920x1080",
+            frame_time_ms=0,
+            gpx_path=Path(integration_test_run_gpx),  # external track, different location
+            video_time_alignment="gpx-timestamps",  # use GPX timestamps as-is
+        )
+
+        assert png_bytes[:8] == b"\x89PNG\r\n\x1a\n"
+        assert Path(integration_test_run_gpx) in used_external, (
+            "external GPX was ignored; preview used the video's embedded GoPro GPS (issue #18)"
+        )
+
     def test_render_preview_to_base64(self, integration_test_video):
         """Preview image should convert to base64."""
         import base64
@@ -328,9 +368,7 @@ class TestAlternateLayoutRender:
                 timeout=300,
             )
 
-            assert result.returncode == 0, (
-                f"Render with user-defined profile failed:\n{result.stderr[-2000:]}"
-            )
+            assert result.returncode == 0, f"Render with user-defined profile failed:\n{result.stderr[-2000:]}"
             assert output_file.exists(), "Output file was not created"
             assert output_file.stat().st_size > 0, "Output file is empty"
 
@@ -342,9 +380,7 @@ class TestAlternateLayoutRender:
             )
             assert probe_result.returncode == 0
             metadata = json.loads(probe_result.stdout)
-            video_stream = next(
-                (s for s in metadata.get("streams", []) if s["codec_type"] == "video"), None
-            )
+            video_stream = next((s for s in metadata.get("streams", []) if s["codec_type"] == "video"), None)
             assert video_stream is not None, "No video stream in output"
             assert video_stream["codec_name"] == "mpeg4", (
                 f"Expected mpeg4 from user-defined profile, got {video_stream.get('codec_name')}"
@@ -892,9 +928,7 @@ class TestRendererCLICommand:
         assert "--profile" in cmd
         assert "nvenc" in cmd
 
-    def test_generate_cli_command_config_dir(
-        self, clean_file_manager, integration_test_video, monkeypatch, tmp_path
-    ):
+    def test_generate_cli_command_config_dir(self, clean_file_manager, integration_test_video, monkeypatch, tmp_path):
         """A non-default gopro_config_dir is passed through as --config-dir."""
         from pathlib import Path
 

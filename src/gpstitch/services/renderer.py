@@ -1192,6 +1192,69 @@ def calculate_odo_offset(gpx_path: Path, video_start_time: datetime.datetime) ->
     return float(codo.magnitude) if codo is not None else 0.0
 
 
+def _load_video_framemeta(
+    file_path: Path,
+    gpx_path: Path | None,
+    video_time_alignment: str | None,
+    time_offset_seconds: int,
+    gps_dop_max: float,
+    gps_speed_max: float,
+):
+    """Build the GPS framemeta for a video preview.
+
+    Precedence matches the render path (which uses ``--use-gpx-only --gpx`` when
+    an external file is present): if an external GPX/FIT/SRT file is provided,
+    use it; otherwise use the video's embedded GoPro GPS, falling back to DJI
+    Action embedded GPS.
+
+    issue #18: previously the embedded GoPro GPS was always tried first and the
+    external file was only consulted when the embedded load failed — so a GoPro
+    video with embedded GPS would ignore a user-supplied GPX/FIT in the preview.
+    """
+    from gopro_overlay.ffmpeg import FFMPEG
+    from gopro_overlay.ffmpeg_gopro import FFMPEGGoPro
+    from gopro_overlay.framemeta_gpx import timeseries_to_framemeta
+    from gopro_overlay.gpmd_filters import standard as gps_filter_standard
+    from gopro_overlay.loading import GoproLoader
+    from gopro_overlay.units import units
+
+    ffmpeg_gopro = FFMPEGGoPro(FFMPEG())
+
+    if gpx_path:
+        # External GPS explicitly provided — prefer it over the video's embedded GPS.
+        timeseries = _load_external_timeseries(gpx_path, units)
+        _apply_timeseries_processing(timeseries)
+        start_date, duration, _source = _resolve_time_alignment(
+            file_path,
+            video_time_alignment,
+            ffmpeg_gopro,
+            time_offset_seconds,
+            gpx_path=gpx_path,
+        )
+        start_date = _align_timezone(start_date, timeseries)
+        return timeseries_to_framemeta(timeseries, units, start_date=start_date, duration=duration)
+
+    gps_filter = gps_filter_standard(
+        dop_max=gps_dop_max,
+        speed_max=units.Quantity(gps_speed_max, units.kph),
+    )
+    loader = GoproLoader(ffmpeg_gopro, units, gps_lock_filter=gps_filter)
+    try:
+        return loader.load(file_path).framemeta
+    except (OSError, TypeError, ValueError) as e:
+        # Fall back to DJI Action embedded GPS (DJI meta stream).
+        from gpstitch.services.dji_meta_parser import detect_dji_meta_stream
+
+        if detect_dji_meta_stream(file_path) is not None:
+            timeseries = _load_dji_meta_for_preview(file_path, units)
+            start_date, duration = _resolve_dji_meta_start_date(
+                file_path, ffmpeg_gopro, video_time_alignment, time_offset_seconds
+            )
+            start_date = _align_timezone(start_date, timeseries)
+            return timeseries_to_framemeta(timeseries, units, start_date=start_date, duration=duration)
+        raise ValueError(f"Could not load GPS data from video: {e}. Try adding a GPX/FIT file.") from e
+
+
 def render_preview(
     file_path: Path,
     layout: str,
@@ -1215,10 +1278,8 @@ def render_preview(
     from gopro_overlay.ffmpeg_gopro import FFMPEGGoPro
     from gopro_overlay.framemeta_gpx import timeseries_to_framemeta
     from gopro_overlay.geo import MapRenderer, MapStyler
-    from gopro_overlay.gpmd_filters import standard as gps_filter_standard
     from gopro_overlay.layout import Overlay
     from gopro_overlay.layout_xml import Converters, layout_from_xml, load_xml_layout
-    from gopro_overlay.loading import GoproLoader
     from gopro_overlay.privacy import NoPrivacyZone
     from gopro_overlay.timeunits import timeunits
     from gopro_overlay.units import units
@@ -1293,49 +1354,14 @@ def render_preview(
         privacy = NoPrivacyZone()
 
         if suffix in (".mp4", ".mov"):
-            # Load GoPro video
-            ffmpeg = FFMPEG()
-            ffmpeg_gopro = FFMPEGGoPro(ffmpeg)
-
-            # Create GPS filter with configured thresholds
-            gps_filter = gps_filter_standard(
-                dop_max=gps_dop_max,
-                speed_max=units.Quantity(gps_speed_max, units.kph),
+            framemeta = _load_video_framemeta(
+                file_path,
+                gpx_path,
+                video_time_alignment,
+                time_offset_seconds,
+                gps_dop_max,
+                gps_speed_max,
             )
-
-            loader = GoproLoader(ffmpeg_gopro, units, gps_lock_filter=gps_filter)
-
-            try:
-                gopro = loader.load(file_path)
-                framemeta = gopro.framemeta
-            except (OSError, TypeError, ValueError) as e:
-                if gpx_path:
-                    # Video has no GPS — use external GPX/FIT/SRT file
-                    timeseries = _load_external_timeseries(gpx_path, units)
-                    _apply_timeseries_processing(timeseries)
-                    start_date, duration, _source = _resolve_time_alignment(
-                        file_path,
-                        video_time_alignment,
-                        ffmpeg_gopro,
-                        time_offset_seconds,
-                        gpx_path=gpx_path,
-                    )
-                    start_date = _align_timezone(start_date, timeseries)
-                    framemeta = timeseries_to_framemeta(timeseries, units, start_date=start_date, duration=duration)
-                else:
-                    # Try DJI Action embedded GPS (DJI meta stream)
-                    from gpstitch.services.dji_meta_parser import detect_dji_meta_stream
-
-                    if detect_dji_meta_stream(file_path) is not None:
-                        timeseries = _load_dji_meta_for_preview(file_path, units)
-                        start_date, duration = _resolve_dji_meta_start_date(
-                            file_path, ffmpeg_gopro, video_time_alignment, time_offset_seconds
-                        )
-                        start_date = _align_timezone(start_date, timeseries)
-                        framemeta = timeseries_to_framemeta(timeseries, units, start_date=start_date, duration=duration)
-                    else:
-                        raise ValueError("Video file does not contain GPS metadata") from e
-
         else:
             # Load GPX, FIT, or SRT file
             timeseries = _load_external_timeseries(file_path, units)
@@ -1479,10 +1505,8 @@ def _render_layout_with_data(
     from gopro_overlay.ffmpeg_gopro import FFMPEGGoPro
     from gopro_overlay.framemeta_gpx import timeseries_to_framemeta
     from gopro_overlay.geo import MapRenderer, MapStyler
-    from gopro_overlay.gpmd_filters import standard as gps_filter_standard
     from gopro_overlay.layout import Overlay
     from gopro_overlay.layout_xml import Converters, layout_from_xml
-    from gopro_overlay.loading import GoproLoader
     from gopro_overlay.privacy import NoPrivacyZone
     from gopro_overlay.timeunits import timeunits
     from gopro_overlay.units import units
@@ -1531,45 +1555,14 @@ def _render_layout_with_data(
         privacy = NoPrivacyZone()
 
         if suffix in (".mp4", ".mov"):
-            ffmpeg = FFMPEG()
-            ffmpeg_gopro = FFMPEGGoPro(ffmpeg)
-
-            # Create GPS filter with configured thresholds
-            gps_filter = gps_filter_standard(
-                dop_max=gps_dop_max,
-                speed_max=units.Quantity(gps_speed_max, units.kph),
+            framemeta = _load_video_framemeta(
+                file_path,
+                gpx_path,
+                video_time_alignment,
+                time_offset_seconds,
+                gps_dop_max,
+                gps_speed_max,
             )
-
-            loader = GoproLoader(ffmpeg_gopro, units, gps_lock_filter=gps_filter)
-            try:
-                gopro = loader.load(file_path)
-                framemeta = gopro.framemeta
-            except (OSError, TypeError, ValueError) as e:
-                if gpx_path:
-                    timeseries = _load_external_timeseries(gpx_path, units)
-                    _apply_timeseries_processing(timeseries)
-                    start_date, duration, _source = _resolve_time_alignment(
-                        file_path,
-                        video_time_alignment,
-                        ffmpeg_gopro,
-                        time_offset_seconds,
-                        gpx_path=gpx_path,
-                    )
-                    start_date = _align_timezone(start_date, timeseries)
-                    framemeta = timeseries_to_framemeta(timeseries, units, start_date=start_date, duration=duration)
-                else:
-                    # Try DJI Action embedded GPS (DJI meta stream)
-                    from gpstitch.services.dji_meta_parser import detect_dji_meta_stream
-
-                    if detect_dji_meta_stream(file_path) is not None:
-                        timeseries = _load_dji_meta_for_preview(file_path, units)
-                        start_date, duration = _resolve_dji_meta_start_date(
-                            file_path, ffmpeg_gopro, video_time_alignment, time_offset_seconds
-                        )
-                        start_date = _align_timezone(start_date, timeseries)
-                        framemeta = timeseries_to_framemeta(timeseries, units, start_date=start_date, duration=duration)
-                    else:
-                        raise ValueError(f"Could not load GPS data from video: {e}. Try adding a GPX/FIT file.") from e
         else:
             timeseries = _load_external_timeseries(file_path, units)
             _apply_timeseries_processing(timeseries)
