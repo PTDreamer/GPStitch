@@ -1,5 +1,7 @@
 """Widget metadata registry - defines all available widgets and their properties."""
 
+import logging
+
 from gpstitch.models.editor import (
     PropertyConstraints,
     PropertyDefinition,
@@ -8,6 +10,8 @@ from gpstitch.models.editor import (
     WidgetCategory,
     WidgetMetadata,
 )
+
+logger = logging.getLogger(__name__)
 
 # Available metrics from layout_xml.py metric_accessor_from
 AVAILABLE_METRICS = [
@@ -43,6 +47,39 @@ AVAILABLE_METRICS = [
     SelectOption(value="gear.front", label="Gear Front"),
     SelectOption(value="gear.rear", label="Gear Rear"),
 ]
+
+# Dynamic FIT developer field metrics (populated at runtime from uploaded FIT files)
+_DYNAMIC_METRICS: list[SelectOption] = []
+
+
+def add_fit_developer_metrics(fit_developer_fields: list[dict]) -> None:
+    """Add FIT developer field metrics from an uploaded FIT file.
+
+    Args:
+        fit_developer_fields: List of dicts with 'name', 'key', 'units' keys
+                              (from extract_fit_developer_fields)
+    """
+    global _DYNAMIC_METRICS
+    for field in fit_developer_fields:
+        key = field['key']
+        name = field['name']
+        units = field.get('units', '')
+        label = f"{name} (FIT)" + (f" [{units}]" if units else "")
+        # Avoid duplicates
+        if not any(m.value == key for m in _DYNAMIC_METRICS):
+            _DYNAMIC_METRICS.append(SelectOption(value=key, label=label))
+            logger.debug("Added dynamic FIT metric: %s -> %s", key, label)
+
+
+def clear_fit_developer_metrics() -> None:
+    """Clear all dynamic FIT developer field metrics."""
+    global _DYNAMIC_METRICS
+    _DYNAMIC_METRICS = []
+
+
+def get_all_metrics() -> list[SelectOption]:
+    """Get all available metrics (static + dynamic FIT developer fields)."""
+    return AVAILABLE_METRICS + _DYNAMIC_METRICS
 
 # Available units from layout_xml.py Converters
 AVAILABLE_UNITS = [
@@ -191,7 +228,7 @@ class WidgetRegistry:
                     name="metric",
                     label="Metric",
                     type=PropertyType.METRIC,
-                    options=AVAILABLE_METRICS,
+                    options=get_all_metrics(),
                     constraints=PropertyConstraints(required=True, default="speed"),
                     category="Data",
                 ),
@@ -229,7 +266,7 @@ class WidgetRegistry:
                     name="metric",
                     label="Metric",
                     type=PropertyType.METRIC,
-                    options=AVAILABLE_METRICS,
+                    options=get_all_metrics(),
                     constraints=PropertyConstraints(required=True, default="speed"),
                     category="Data",
                 ),
@@ -600,7 +637,7 @@ class WidgetRegistry:
                     name="metric",
                     label="Metric",
                     type=PropertyType.METRIC,
-                    options=AVAILABLE_METRICS,
+                    options=get_all_metrics(),
                     constraints=PropertyConstraints(required=True, default="accel"),
                     category="Data",
                 ),
@@ -686,7 +723,7 @@ class WidgetRegistry:
                     name="metric",
                     label="Metric",
                     type=PropertyType.METRIC,
-                    options=AVAILABLE_METRICS,
+                    options=get_all_metrics(),
                     constraints=PropertyConstraints(required=True, default="hr"),
                     category="Data",
                 ),
@@ -771,7 +808,7 @@ class WidgetRegistry:
                     name="metric",
                     label="Metric",
                     type=PropertyType.METRIC,
-                    options=AVAILABLE_METRICS,
+                    options=get_all_metrics(),
                     constraints=PropertyConstraints(default="alt"),
                     category="Data",
                 ),
@@ -871,7 +908,7 @@ class WidgetRegistry:
                     name="metric",
                     label="Metric",
                     type=PropertyType.METRIC,
-                    options=AVAILABLE_METRICS,
+                    options=get_all_metrics(),
                     constraints=PropertyConstraints(default="speed"),
                     category="Data",
                 ),
@@ -943,7 +980,7 @@ class WidgetRegistry:
                     name="metric",
                     label="Metric",
                     type=PropertyType.METRIC,
-                    options=AVAILABLE_METRICS,
+                    options=get_all_metrics(),
                     constraints=PropertyConstraints(default="speed"),
                     category="Data",
                 ),
@@ -1131,7 +1168,7 @@ class WidgetRegistry:
                     name="metric",
                     label="Metric",
                     type=PropertyType.METRIC,
-                    options=AVAILABLE_METRICS,
+                    options=get_all_metrics(),
                     constraints=PropertyConstraints(required=True, default="speed"),
                     category="Data",
                 ),
@@ -1189,7 +1226,7 @@ class WidgetRegistry:
                     name="metric",
                     label="Metric",
                     type=PropertyType.METRIC,
-                    options=AVAILABLE_METRICS,
+                    options=get_all_metrics(),
                     constraints=PropertyConstraints(required=True, default="speed"),
                     category="Data",
                 ),
@@ -1247,7 +1284,7 @@ class WidgetRegistry:
                     name="metric",
                     label="Metric",
                     type=PropertyType.METRIC,
-                    options=AVAILABLE_METRICS,
+                    options=get_all_metrics(),
                     constraints=PropertyConstraints(required=True, default="speed"),
                     category="Data",
                 ),
@@ -1298,7 +1335,7 @@ class WidgetRegistry:
                     name="metric",
                     label="Metric",
                     type=PropertyType.METRIC,
-                    options=AVAILABLE_METRICS,
+                    options=get_all_metrics(),
                     constraints=PropertyConstraints(required=True, default="speed"),
                     category="Data",
                 ),
@@ -1346,7 +1383,13 @@ class WidgetRegistry:
         return self._metadata.get(widget_type)
 
     def get_all_metadata(self) -> list[WidgetMetadata]:
-        """Get all widget metadata."""
+        """Get all widget metadata, with up-to-date metric options."""
+        # Rebuild metric options dynamically so FIT developer fields are included
+        current_metrics = get_all_metrics()
+        for widget in self._metadata.values():
+            for prop in widget.properties:
+                if prop.type == PropertyType.METRIC:
+                    prop.options = current_metrics
         return list(self._metadata.values())
 
     def get_categories(self) -> list[str]:

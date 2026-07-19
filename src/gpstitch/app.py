@@ -71,12 +71,12 @@ async def lifespan(app: FastAPI):
 
 
 class StaticCacheMiddleware(BaseHTTPMiddleware):
-    """Set Cache-Control: no-cache for static files so the browser revalidates via ETag."""
+    """Set Cache-Control: no-store for static files to prevent stale caches."""
 
     async def dispatch(self, request, call_next):
         response = await call_next(request)
         if request.url.path.startswith("/static/"):
-            response.headers["Cache-Control"] = "no-cache"
+            response.headers["Cache-Control"] = "no-store, max-age=0"
         return response
 
 

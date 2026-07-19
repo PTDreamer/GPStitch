@@ -40,6 +40,7 @@ class GpxFitMetadata(BaseModel):
 
     gps_point_count: int
     duration_seconds: float | None = None
+    fit_developer_fields: list[dict] = Field(default_factory=list, description="FIT developer field definitions (DIDs)")
 
 
 # Type alias for GPS quality scores

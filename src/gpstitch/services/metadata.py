@@ -129,6 +129,7 @@ def extract_gpx_fit_metadata(file_path: Path) -> GpxFitMetadata | None:
         return GpxFitMetadata(
             gps_point_count=point_count,
             duration_seconds=duration,
+            fit_developer_fields=extract_fit_developer_fields(file_path),
         )
     except Exception:
         logger.exception("Error extracting GPX/FIT metadata from %s", file_path)
@@ -139,3 +140,151 @@ def get_file_type(file_path: Path) -> str:
     """Determine the file type from extension."""
     suffix = file_path.suffix.lower()
     return {".mp4": "video", ".mov": "video", ".gpx": "gpx", ".fit": "fit", ".srt": "srt"}.get(suffix, "unknown")
+
+
+def extract_fit_developer_fields(file_path: Path) -> list[dict]:
+    """Extract developer field definitions from a FIT file.
+
+    Returns a list of dicts with keys: name, key (snake_case), scale, offset, units.
+    These represent configurable DIDs that the user can display in the overlay.
+    """
+    import re
+
+    if file_path.suffix.lower() != ".fit":
+        return []
+
+    try:
+        import struct
+        from pathlib import Path as P
+
+        data = file_path.read_bytes()
+        if len(data) < 12 or data[8:12] != b'.FIT':
+            return []
+
+        hdr_size = data[0]
+        data_size = struct.unpack('<I', data[4:8])[0]
+        pos = hdr_size
+        end = hdr_size + data_size
+
+        MSG_FIELD_DESC = 206
+        BASE_TYPE_SIZE = {
+            0x00: 1, 0x01: 1, 0x02: 1,
+            0x83: 2, 0x84: 2, 0x85: 4, 0x86: 4,
+            0x07: 1, 0x88: 4, 0x89: 8,
+            0x0A: 1, 0x8B: 2, 0x8C: 4,
+            0x0D: 1, 0x8E: 8, 0x8F: 8, 0x90: 8,
+        }
+
+        def _decode(raw, bt):
+            bt = bt & 0xFF
+            if bt == 0x00:
+                return raw[0]
+            elif bt == 0x01:
+                return struct.unpack('<b', raw[:1])[0]
+            elif bt == 0x02:
+                return raw[0]
+            elif bt == 0x83:
+                return struct.unpack('<h', raw[:2])[0]
+            elif bt == 0x84:
+                return struct.unpack('<H', raw[:2])[0]
+            elif bt == 0x85:
+                return struct.unpack('<i', raw[:4])[0]
+            elif bt == 0x86:
+                return struct.unpack('<I', raw[:4])[0]
+            elif bt == 0x07:
+                return raw.rstrip(b'\x00').decode('utf-8', errors='replace')
+            elif bt == 0x88:
+                return struct.unpack('<f', raw[:4])[0]
+            elif bt == 0x89:
+                return struct.unpack('<d', raw[:8])[0]
+            else:
+                return raw.hex()
+
+        def _name_to_key(name):
+            return re.sub(r'[^a-zA-Z0-9]+', '_', name).strip('_').lower()
+
+        mesg_defs = {}
+        dev_fields = {}
+
+        while pos < end and pos < len(data):
+            hdr_byte = data[pos]; pos += 1
+            is_def = bool(hdr_byte & 0x40)
+            local_num = hdr_byte & 0x0F
+
+            if is_def:
+                if pos + 4 > len(data):
+                    break
+                pos += 1  # reserved
+                pos += 1  # arch
+                global_num = struct.unpack('<H', data[pos:pos+2])[0]
+                pos += 2
+                n_fields = data[pos]; pos += 1
+                fields = []
+                for _ in range(n_fields):
+                    if pos + 3 > len(data):
+                        break
+                    fields.append((data[pos], data[pos+1], data[pos+2]))
+                    pos += 3
+                has_dev = bool(hdr_byte & 0x20)
+                if has_dev:
+                    if pos >= len(data):
+                        break
+                    n_dev = data[pos]; pos += 1
+                    for _ in range(n_dev):
+                        if pos + 3 > len(data):
+                            break
+                        pos += 3
+                mesg_defs[local_num] = (global_num, fields)
+            else:
+                defn = mesg_defs.get(local_num)
+                if defn is None:
+                    break
+                global_num, fields = defn
+
+                if global_num == MSG_FIELD_DESC:
+                    msg_start = pos
+                    parsed = {}
+                    for field_num, size, base_type in fields:
+                        if pos + size > len(data):
+                            pos = end
+                            break
+                        raw = data[pos:pos+size]
+                        parsed[field_num] = _decode(raw, base_type)
+                        pos += size
+
+                    name_val = parsed.get(3, '')
+                    if isinstance(name_val, bytes):
+                        name_val = name_val.rstrip(b'\x00').decode('utf-8', errors='replace')
+                    name = str(name_val) if name_val else ''
+                    if not name:
+                        continue
+
+                    scale_val = parsed.get(6, 0xFF)
+                    if scale_val == 0xFF or scale_val is None:
+                        scale_val = None
+                    offset_val = parsed.get(7, 0x7F)
+                    if offset_val == 0x7F or offset_val is None:
+                        offset_val = None
+                    units_val = parsed.get(8, '')
+                    if isinstance(units_val, bytes):
+                        units_val = units_val.rstrip(b'\x00').decode('utf-8', errors='replace')
+
+                    dev_fields[name] = {
+                        'name': name,
+                        'key': _name_to_key(name),
+                        'scale': scale_val,
+                        'offset': offset_val,
+                        'units': str(units_val),
+                    }
+                else:
+                    # Skip data message — advance past all fields
+                    for _, size, _ in fields:
+                        if pos + size > len(data):
+                            pos = end
+                            break
+                        pos += size
+
+        return list(dev_fields.values())
+    except Exception:
+        logger.debug("Could not extract FIT developer fields from %s", file_path)
+        return []

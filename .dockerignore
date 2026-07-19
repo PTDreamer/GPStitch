@@ -1,0 +1,16 @@
+__pycache__
+*.pyc
+*.pyo
+.git
+.gitignore
+.pytest_cache
+.ruff_cache
+*.egg-info
+dist
+build
+tests
+docs
+docker/Dockerfile
+*.md
+!README.md
+!RELEASE_NOTES.md

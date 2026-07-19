@@ -367,16 +367,20 @@ class UnifiedApp {
         this.state.on('session:changed', () => {
             this._updateFileContext();
             this._requestPreview();
+            this._requestPreviewForAdvanced();
             this._analyzeTimeSync();
             this._updateCanvasSizeWarning();
+            this._refreshMetricsIfFit();
         });
 
         // Files changed (secondary added/removed)
         this.state.on('files:changed', () => {
             this._updateFileContext();
             this._requestPreview();
+            this._requestPreviewForAdvanced();
             this._analyzeTimeSync();
             this._updateCanvasSizeWarning();
+            this._refreshMetricsIfFit();
         });
 
         // GPX options changed
@@ -624,6 +628,24 @@ class UnifiedApp {
      * misplaced on the rendered video (ffmpeg overlay compositing does not
      * scale the overlay to match the source video resolution).
      */
+    _refreshMetricsIfFit() {
+        // After a FIT file upload, the server may have discovered new developer
+        // fields (DIDs). Refresh the editor's widget metadata so the metric
+        // dropdowns include the new fields.
+        const files = this.state.files || [];
+        const hasFit = files.some(f => f.file_type === 'fit');
+        console.log('_refreshMetricsIfFit: hasFit=', hasFit, 'editorInitialized=', this.modeToggle?.editorInitialized);
+
+        if (hasFit && this.modeToggle) {
+            if (this.modeToggle.editorInitialized) {
+                console.log('Refreshing widget metadata for FIT developer fields...');
+                this.modeToggle.refreshWidgetMetadata();
+            } else {
+                console.log('Editor not yet initialized, skipping FIT metadata refresh');
+            }
+        }
+    }
+
     _updateCanvasSizeWarning() {
         const banner = document.getElementById('canvas-size-warning');
         if (!banner) return;

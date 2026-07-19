@@ -21,6 +21,7 @@ from gpstitch.services.metadata import (
     extract_video_metadata,
     get_file_type,
 )
+from gpstitch.services.widget_registry import add_fit_developer_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +115,9 @@ async def use_local_file(request: LocalFileRequest) -> UploadResponse:
     elif file_type in ("gpx", "fit", "srt"):
         try:
             gpx_fit_metadata = extract_gpx_fit_metadata(file_path)
+            # Register any FIT developer fields as available metrics
+            if gpx_fit_metadata and gpx_fit_metadata.fit_developer_fields:
+                add_fit_developer_metrics(gpx_fit_metadata.fit_developer_fields)
         except Exception as e:
             logger.error(f"Failed to extract GPX/FIT metadata: {e}")
             if not reuse_session and not replace_video:
@@ -301,6 +305,9 @@ async def use_local_secondary_file(request: SecondaryFileRequest) -> UploadRespo
 
     try:
         gpx_fit_metadata = extract_gpx_fit_metadata(file_path)
+        # Register any FIT developer fields as available metrics
+        if gpx_fit_metadata and gpx_fit_metadata.fit_developer_fields:
+            add_fit_developer_metrics(gpx_fit_metadata.fit_developer_fields)
     except Exception as e:
         logger.error(f"Failed to extract GPX/FIT metadata: {e}")
         raise HTTPException(
@@ -433,6 +440,9 @@ async def upload_file(
     elif file_type in ("gpx", "fit", "srt"):
         try:
             gpx_fit_metadata = extract_gpx_fit_metadata(file_path)
+            # Register any FIT developer fields as available metrics
+            if gpx_fit_metadata and gpx_fit_metadata.fit_developer_fields:
+                add_fit_developer_metrics(gpx_fit_metadata.fit_developer_fields)
         except Exception as e:
             logger.error(f"Failed to extract GPX/FIT metadata: {e}")
             if not reuse_session and not replace_video:
@@ -555,6 +565,9 @@ async def upload_secondary_file(
 
     try:
         gpx_fit_metadata = extract_gpx_fit_metadata(file_path)
+        # Register any FIT developer fields as available metrics
+        if gpx_fit_metadata and gpx_fit_metadata.fit_developer_fields:
+            add_fit_developer_metrics(gpx_fit_metadata.fit_developer_fields)
     except Exception as e:
         logger.error(f"Failed to extract GPX/FIT metadata: {e}")
         # Remove the file

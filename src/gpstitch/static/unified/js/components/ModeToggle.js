@@ -39,6 +39,51 @@ class ModeToggle {
         this._applyMode(this.state.mode);
     }
 
+    /**
+     * Refresh widget metadata from the server.
+     * Called after FIT file uploads to pick up dynamically discovered developer fields.
+     */
+    async refreshWidgetMetadata() {
+        try {
+            console.log('Fetching updated widget metadata...');
+            const metadata = await apiClient.getWidgetMetadata();
+            editorState.widgetMetadata = metadata.widgets || [];
+            editorState.widgetMetadataByType = {};
+            for (const widget of editorState.widgetMetadata) {
+                editorState.widgetMetadataByType[widget.type] = widget;
+            }
+            console.log(`Refreshed widget metadata: ${editorState.widgetMetadata.length} widgets`);
+
+            // Log available metrics for debugging
+            const metricWidget = editorState.widgetMetadataByType['metric'];
+            if (metricWidget) {
+                const metricProp = metricWidget.properties.find(p => p.name === 'metric');
+                if (metricProp && metricProp.options) {
+                    console.log(`Metric options count: ${metricProp.options.length}`);
+                    const fitMetrics = metricProp.options.filter(o => o.label.includes('FIT'));
+                    if (fitMetrics.length > 0) {
+                        console.log('FIT metrics found:', fitMetrics.map(m => m.value));
+                    } else {
+                        console.log('No FIT metrics found in options');
+                    }
+                }
+            }
+
+            // Re-render palette and properties panel if editor is active
+            if (this.widgetPalette) {
+                this.widgetPalette.render();
+            }
+            if (this.propertiesPanel_component) {
+                this.propertiesPanel_component.render();
+            }
+            // Force properties panel to re-render with updated metric options
+            // by emitting selection:changed (it listens for this event)
+            editorState.emit('selection:changed', { selected: Array.from(editorState.selectedWidgets) });
+        } catch (error) {
+            console.error('Failed to refresh widget metadata:', error);
+        }
+    }
+
     _attachEventListeners() {
         this.quickBtn.addEventListener('click', () => {
             this.setMode('quick');
