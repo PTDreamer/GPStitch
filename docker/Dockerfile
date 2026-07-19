@@ -67,7 +67,7 @@ EXPOSE 8000
 VOLUME /work
 WORKDIR /work
 
-COPY docker/entrypoint.sh /entrypoint.sh
+COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
