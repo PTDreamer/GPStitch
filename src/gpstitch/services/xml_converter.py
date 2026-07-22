@@ -30,6 +30,8 @@ class XMLConverter:
         "compass_arrow",
         "asi",
         "msi",
+        "dirtbike",
+        "dirtbike_lean",
         "gps_lock_icon",
         "icon",
         "cairo_circuit_map",
@@ -51,6 +53,8 @@ class XMLConverter:
         "asi",
         "msi",
         "msi2",
+        "dirtbike",
+        "dirtbike_lean",
         "gps_lock_icon",
         # Cairo widgets also don't support x,y
         "cairo_circuit_map",

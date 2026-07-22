@@ -30,12 +30,12 @@
         <translate y="60">
             <component type="text" x="0" y="0" size="16" rgb="0,200,255">LEAN (mdeg)</component>
             <component type="metric" x="0" y="20" metric="lean_angle" dp="0" size="32" rgb="0,200,255"/>
-            <component type="dirtbike" x="0" y="60" metric="lean_angle" file="dirtbike_side.png" size="128" max_angle="45"/>
+            <component type="dirtbike" x="0" y="60" metric="lean_angle" file="dirtbike_side.png" size="256" max_angle="45"/>
         </translate>
         <!-- Pitch Angle -->
         <translate y="240">
             <component type="text" x="0" y="0" size="16" rgb="0,200,255">PITCH</component>
-            <component type="dirtbike" x="0" y="20" metric="pitch_angle" file="dirtbike_back.png" size="128" max_angle="45" colour="50,60,90,128"/>
+            <component type="dirtbike" x="0" y="20" metric="pitch_angle" file="dirtbike_back.png" size="256" max_angle="45" colour="50,60,90,128"/>
         </translate>
         <!-- Intake Air Temp -->
         <translate y="400">

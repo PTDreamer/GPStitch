@@ -1051,17 +1051,122 @@ class WidgetRegistry:
             ],
         )
 
-        # COMPOSITE (Container)
-        self._metadata["composite"] = WidgetMetadata(
-            type="composite",
-            name="Composite",
-            description="Container for grouping widgets",
-            category=WidgetCategory.CONTAINERS,
-            icon="[]",
-            default_width=200,
-            default_height=100,
-            is_container=True,
-            properties=_common_position_props(),
+        # DIRTBIKE (Lean / Pitch Tilt Indicator)
+        self._metadata["dirtbike"] = WidgetMetadata(
+            type="dirtbike",
+            name="Dirtbike Tilt",
+            description="Motorcycle back-view image that rotates with pitch angle",
+            category=WidgetCategory.GAUGES,
+            icon="DB",
+            default_width=256,
+            default_height=256,
+            properties=_common_position_props()
+            + [
+                PropertyDefinition(
+                    name="size",
+                    label="Size",
+                    type=PropertyType.NUMBER,
+                    constraints=PropertyConstraints(min=32, max=512, default=128),
+                    category="Appearance",
+                ),
+                PropertyDefinition(
+                    name="metric",
+                    label="Metric",
+                    type=PropertyType.METRIC,
+                    options=get_all_metrics(),
+                    constraints=PropertyConstraints(required=True, default="pitch_angle"),
+                    category="Data",
+                ),
+                PropertyDefinition(
+                    name="units",
+                    label="Units",
+                    type=PropertyType.UNITS,
+                    options=AVAILABLE_UNITS,
+                    constraints=PropertyConstraints(default=None),
+                    category="Data",
+                ),
+                PropertyDefinition(
+                    name="file",
+                    label="Image File",
+                    type=PropertyType.STRING,
+                    constraints=PropertyConstraints(required=True, default="dirtbike_back.png"),
+                    category="Content",
+                ),
+                PropertyDefinition(
+                    name="max_angle",
+                    label="Max Angle (°)",
+                    type=PropertyType.NUMBER,
+                    constraints=PropertyConstraints(min=5, max=90, default=45),
+                    category="Behavior",
+                ),
+                PropertyDefinition(
+                    name="colour",
+                    label="Tint Colour",
+                    type=PropertyType.COLOR,
+                    description="Colour tint applied to the motorcycle lines (leave blank for original white)",
+                    constraints=PropertyConstraints(default=None),
+                    category="Appearance",
+                ),
+            ],
+        )
+
+        # DIRTBIKE_LEAN (Lean Angle — side view)
+        self._metadata["dirtbike_lean"] = WidgetMetadata(
+            type="dirtbike_lean",
+            name="Dirtbike Lean",
+            description="Motorcycle side-view image that rotates with lean angle",
+            category=WidgetCategory.GAUGES,
+            icon="DBL",
+            default_width=256,
+            default_height=256,
+            properties=_common_position_props()
+            + [
+                PropertyDefinition(
+                    name="size",
+                    label="Size",
+                    type=PropertyType.NUMBER,
+                    constraints=PropertyConstraints(min=32, max=512, default=128),
+                    category="Appearance",
+                ),
+                PropertyDefinition(
+                    name="metric",
+                    label="Metric",
+                    type=PropertyType.METRIC,
+                    options=get_all_metrics(),
+                    constraints=PropertyConstraints(required=True, default="lean_angle"),
+                    category="Data",
+                ),
+                PropertyDefinition(
+                    name="units",
+                    label="Units",
+                    type=PropertyType.UNITS,
+                    options=AVAILABLE_UNITS,
+                    constraints=PropertyConstraints(default=None),
+                    category="Data",
+                ),
+                PropertyDefinition(
+                    name="file",
+                    label="Image File",
+                    type=PropertyType.STRING,
+                    constraints=PropertyConstraints(required=True, default="dirtbike_side.png"),
+                    category="Content",
+                ),
+                PropertyDefinition(
+                    name="max_angle",
+                    label="Max Angle (°)",
+                    type=PropertyType.NUMBER,
+                    constraints=PropertyConstraints(min=5, max=90, default=45),
+                    category="Behavior",
+                ),
+                PropertyDefinition(
+                    name="colour",
+                    label="Tint Colour",
+                    type=PropertyType.COLOR,
+                    description="Colour tint applied to the motorcycle lines (leave blank for original white)",
+                    constraints=PropertyConstraints(default=None),
+                    category="Appearance",
+                ),
+            ],
         )
 
         # TRANSLATE (Container with offset)
