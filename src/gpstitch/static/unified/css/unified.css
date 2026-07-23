@@ -3184,3 +3184,139 @@ select {
 .btn-warning:hover {
     background: #e6bc5c;
 }
+
+/* File Browser Modal */
+.file-browser-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.file-browser-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.file-browser-dialog {
+    position: relative;
+    width: 600px;
+    max-width: 90vw;
+    max-height: 80vh;
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.file-browser-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.file-browser-header h3 {
+    margin: 0;
+    font-size: var(--font-size-lg);
+    color: var(--color-text-primary);
+}
+
+.file-browser-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.file-browser-close:hover {
+    color: var(--color-text-primary);
+}
+
+.file-browser-path {
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.file-browser-path input {
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-bg-input);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text-primary);
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-sm);
+}
+
+.file-browser-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-2);
+    min-height: 300px;
+    max-height: 50vh;
+}
+
+.file-browser-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.file-browser-item:hover {
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.file-browser-dir {
+    color: var(--color-text-primary);
+}
+
+.file-browser-file {
+    color: var(--color-text-secondary);
+}
+
+.file-browser-icon {
+    font-size: 16px;
+    width: 24px;
+    text-align: center;
+}
+
+.file-browser-name {
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-browser-loading,
+.file-browser-empty,
+.file-browser-error {
+    padding: var(--space-8);
+    text-align: center;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.file-browser-error {
+    color: var(--color-error);
+}

@@ -1107,6 +1107,14 @@ class WidgetRegistry:
                     constraints=PropertyConstraints(default=None),
                     category="Appearance",
                 ),
+                PropertyDefinition(
+                    name="milidegrees",
+                    label="Milidegrees",
+                    type=PropertyType.BOOLEAN,
+                    description="Raw values are in milidegrees (÷1000 to get degrees)",
+                    constraints=PropertyConstraints(default=False),
+                    category="Data",
+                ),
             ],
         )
 
@@ -1165,6 +1173,14 @@ class WidgetRegistry:
                     description="Colour tint applied to the motorcycle lines (leave blank for original white)",
                     constraints=PropertyConstraints(default=None),
                     category="Appearance",
+                ),
+                PropertyDefinition(
+                    name="milidegrees",
+                    label="Milidegrees",
+                    type=PropertyType.BOOLEAN,
+                    description="Raw values are in milidegrees (÷1000 to get degrees)",
+                    constraints=PropertyConstraints(default=False),
+                    category="Data",
                 ),
             ],
         )

@@ -49,6 +49,7 @@ class FileUploader {
                 ${this.localMode ? `
                     <div class="file-field-input-row">
                         <input type="text" id="video-path-input" class="file-path-input" placeholder="/path/to/video.mp4">
+                        <button id="video-browse-btn" class="btn btn-sm btn-secondary" title="Browse">📁</button>
                         <button id="video-load-btn" class="btn btn-sm btn-primary">Load</button>
                     </div>
                 ` : `
@@ -72,6 +73,7 @@ class FileUploader {
                 ${this.localMode ? `
                     <div class="file-field-input-row">
                         <input type="text" id="gps-path-input" class="file-path-input" placeholder="/path/to/track.gpx or .srt">
+                        <button id="gps-browse-btn" class="btn btn-sm btn-secondary" title="Browse">📁</button>
                         <button id="gps-load-btn" class="btn btn-sm btn-primary">Load</button>
                     </div>
                 ` : `
@@ -113,6 +115,10 @@ class FileUploader {
             // Local mode: path inputs
             document.getElementById('video-load-btn')?.addEventListener('click', () => this._loadLocalFile('video'));
             document.getElementById('gps-load-btn')?.addEventListener('click', () => this._loadLocalFile('gps'));
+            
+            // Browse buttons
+            document.getElementById('video-browse-btn')?.addEventListener('click', () => this._openFileBrowser('video'));
+            document.getElementById('gps-browse-btn')?.addEventListener('click', () => this._openFileBrowser('gps'));
 
             this.videoPathInput?.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') this._loadLocalFile('video');
@@ -450,6 +456,103 @@ class FileUploader {
         } else if (gpsFile) {
             this.modeIndicator.innerHTML = '<span class="mode-badge mode-gps">GPS Only</span> Overlay without video';
         }
+    }
+
+    _openFileBrowser(type) {
+        const input = type === 'video' ? this.videoPathInput : this.gpsPathInput;
+        const currentPath = input ? input.value : '';
+        
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'file-browser-modal';
+        modal.innerHTML = `
+            <div class="file-browser-overlay"></div>
+            <div class="file-browser-dialog">
+                <div class="file-browser-header">
+                    <h3>Select ${type === 'video' ? 'Video' : 'GPS'} File</h3>
+                    <button class="file-browser-close">&times;</button>
+                </div>
+                <div class="file-browser-path">
+                    <input type="text" id="file-browser-current-path" class="file-path-input" value="">
+                </div>
+                <div class="file-browser-content">
+                    <div class="file-browser-loading">Loading...</div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        const pathInput = modal.querySelector('#file-browser-current-path');
+        const content = modal.querySelector('.file-browser-content');
+        const closeBtn = modal.querySelector('.file-browser-close');
+        const overlay = modal.querySelector('.file-browser-overlay');
+        
+        // Load initial directory
+        const loadDir = async (dirPath) => {
+            content.innerHTML = '<div class="file-browser-loading">Loading...</div>';
+            try {
+                const params = dirPath ? `?path=${encodeURIComponent(dirPath)}` : '';
+                const response = await fetch(`/api/browse${params}`);
+                if (!response.ok) throw new Error('Failed to load directory');
+                
+                const data = await response.json();
+                pathInput.value = data.current_path;
+                
+                let html = '';
+                
+                // Parent directory
+                if (data.parent_path) {
+                    html += `<div class="file-browser-item file-browser-dir" data-path="${data.parent_path}">
+                        <span class="file-browser-icon">📁</span>
+                        <span class="file-browser-name">..</span>
+                    </div>`;
+                }
+                
+                // Directories and files
+                for (const entry of data.entries) {
+                    if (entry.is_dir) {
+                        html += `<div class="file-browser-item file-browser-dir" data-path="${entry.path}">
+                            <span class="file-browser-icon">📁</span>
+                            <span class="file-browser-name">${entry.name}</span>
+                        </div>`;
+                    } else {
+                        html += `<div class="file-browser-item file-browser-file" data-path="${entry.path}">
+                            <span class="file-browser-icon">📄</span>
+                            <span class="file-browser-name">${entry.name}</span>
+                        </div>`;
+                    }
+                }
+                
+                content.innerHTML = html || '<div class="file-browser-empty">No files found</div>';
+                
+                // Add click handlers
+                content.querySelectorAll('.file-browser-dir').forEach(item => {
+                    item.addEventListener('click', () => loadDir(item.dataset.path));
+                });
+                
+                content.querySelectorAll('.file-browser-file').forEach(item => {
+                    item.addEventListener('click', () => {
+                        input.value = item.dataset.path;
+                        modal.remove();
+                    });
+                });
+                
+            } catch (error) {
+                content.innerHTML = `<div class="file-browser-error">Error: ${error.message}</div>`;
+            }
+        };
+        
+        // Event handlers
+        pathInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') loadDir(pathInput.value);
+        });
+        
+        closeBtn.addEventListener('click', () => modal.remove());
+        overlay.addEventListener('click', () => modal.remove());
+        
+        // Load initial directory
+        loadDir(currentPath ? currentPath.substring(0, currentPath.lastIndexOf('/')) : '');
     }
 }
 
