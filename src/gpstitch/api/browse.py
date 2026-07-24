@@ -47,9 +47,10 @@ async def browse_files(
             detail="Local file mode is disabled.",
         )
 
-    # Default to home directory
+    # Default to /work if it exists (Docker environment), otherwise home directory
     if path is None or path.strip() == "":
-        current = Path.home()
+        work_path = Path("/work")
+        current = work_path if work_path.is_dir() else Path.home()
     else:
         current = Path(path).expanduser().resolve()
 
