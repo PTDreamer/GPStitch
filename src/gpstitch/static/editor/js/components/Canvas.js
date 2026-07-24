@@ -339,11 +339,16 @@ class Canvas {
                 const width = widget.properties.width || widget.properties._displayWidth || sizeAsDimension || metadata?.default_width || 100;
                 const align = widget.properties.align;
 
+                // Find position owner: if widget is inside a translate, the translate owns x/y
+                const posOwner = this.state.getPositionOwner(widgetId);
+                const positionOwnerId = posOwner.owner.id;
+
                 this.dragState = {
                     isDragging: true,
                     widgetId,
-                    startX: widget.x,
-                    startY: widget.y,
+                    positionOwnerId,  // Widget whose x/y we actually update
+                    startX: posOwner.owner.x,
+                    startY: posOwner.owner.y,
                     startDisplayX: actualDisplayX,  // Canvas position at drag start
                     startDisplayY: actualDisplayY,
                     offsetX: coords.x - actualDisplayX,  // Click offset within widget
@@ -409,7 +414,7 @@ class Canvas {
         newX = Math.max(0, newX);
         newY = Math.max(0, newY);
 
-        this.state.updateWidget(this.dragState.widgetId, { x: newX, y: newY });
+        this.state.updateWidget(this.dragState.positionOwnerId, { x: newX, y: newY });
 
         // Update status bar
         this._updateStatusPosition(newX, newY);
@@ -528,9 +533,9 @@ class Canvas {
         if (this.dragState.isDragging) {
             this.dragState.isDragging = false;
 
-            // Save to history if position changed
-            const widget = this.state.findWidget(this.dragState.widgetId);
-            if (widget && (widget.x !== this.dragState.startX || widget.y !== this.dragState.startY)) {
+            // Save to history if position changed (check the position owner, not the widget)
+            const posOwner = this.state.findWidget(this.dragState.positionOwnerId);
+            if (posOwner && (posOwner.x !== this.dragState.startX || posOwner.y !== this.dragState.startY)) {
                 this.state.saveSnapshot();
             }
         }
@@ -562,9 +567,13 @@ class Canvas {
 
             widgets.forEach(widget => {
                 if (!widget.locked) {
-                    this.state.updateWidget(widget.id, {
-                        x: widget.x + dx,
-                        y: widget.y + dy
+                    // Move the position owner (translate parent if inside one, else widget itself)
+                    const posOwner = this.state.getPositionOwner(widget.id);
+                    const newX = Math.max(0, posOwner.owner.x + dx);
+                    const newY = Math.max(0, posOwner.owner.y + dy);
+                    this.state.updateWidget(posOwner.owner.id, {
+                        x: newX,
+                        y: newY
                     });
                 }
             });

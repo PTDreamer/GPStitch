@@ -155,7 +155,7 @@ class EditorState {
         const widget = this.findWidget(widgetId);
         if (widget) {
             if (propertyName === 'x' || propertyName === 'y') {
-                widget[propertyName] = value;
+                widget[propertyName] = Math.max(0, value);
             } else {
                 widget.properties[propertyName] = value;
             }
@@ -323,6 +323,54 @@ class EditorState {
             }
         }
         return null;
+    }
+
+    /**
+     * Find the parent widget of a given widget (searches recursively)
+     * @param {string} widgetId
+     * @returns {Object|null} The parent widget, or null if top-level
+     */
+    findParentWidget(widgetId) {
+        return this._findParentWidgetRecursive(this.layout.widgets, widgetId);
+    }
+
+    _findParentWidgetRecursive(widgets, widgetId) {
+        for (const widget of widgets) {
+            if (widget.children) {
+                for (const child of widget.children) {
+                    if (child.id === widgetId) {
+                        return widget;
+                    }
+                }
+                const found = this._findParentWidgetRecursive(widget.children, widgetId);
+                if (found !== null) return found;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Get the 'position owner' for a widget — the widget whose x/y actually
+     * controls its canvas position. Walks up the ancestor chain looking for
+     * the nearest <translate> ancestor (since translate owns the absolute
+     * position for any nested widget). If no translate is found, the widget
+     * itself owns its position.
+     * @param {string} widgetId
+     * @returns {Object} { owner: WidgetInstance, ownerIsParent: boolean }
+     */
+    getPositionOwner(widgetId) {
+        // Walk up the ancestor chain to find a translate that owns positioning
+        let currentId = widgetId;
+        while (currentId) {
+            const parent = this.findParentWidget(currentId);
+            if (parent && parent.type === 'translate') {
+                return { owner: parent, ownerIsParent: true };
+            }
+            currentId = parent ? parent.id : null;
+        }
+        // No translate ancestor — widget owns its own position
+        const widget = this.findWidget(widgetId);
+        return { owner: widget, ownerIsParent: false };
     }
 
     _removeWidgetRecursive(widgets, widgetId) {

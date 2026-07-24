@@ -81,9 +81,15 @@ class PropertiesPanel {
     }
 
     _renderProperty(widget, propDef) {
-        const value = propDef.name === 'x' ? widget.x :
-                      propDef.name === 'y' ? widget.y :
-                      widget.properties[propDef.name];
+        // For x/y properties, show the position owner's coordinates
+        // (the translate parent if the widget is inside one)
+        let value;
+        if (propDef.name === 'x' || propDef.name === 'y') {
+            const posOwner = this.state.getPositionOwner(widget.id);
+            value = posOwner.owner ? posOwner.owner[propDef.name] : widget[propDef.name];
+        } else {
+            value = widget.properties[propDef.name];
+        }
 
         const id = `prop-${propDef.name}`;
 
@@ -183,6 +189,14 @@ class PropertiesPanel {
                     value = input.value;
                 }
 
+                // For x/y properties, update the position owner (translate parent if inside one)
+                if (propName === 'x' || propName === 'y') {
+                    const posOwner = this.state.getPositionOwner(widget.id);
+                    if (posOwner.owner) {
+                        this.state.updateWidget(posOwner.owner.id, { [propName]: Math.max(0, value) });
+                        return;
+                    }
+                }
                 this.state.setWidgetProperty(widget.id, propName, value);
             };
 
@@ -276,6 +290,10 @@ class PropertiesPanel {
         const canvas = this.state.layout?.canvas;
         if (!canvas) return null;
 
+        // Use position owner's coordinates for bounds check
+        const posOwner = this.state.getPositionOwner(widget.id);
+        const ownerWidget = posOwner.owner || widget;
+
         // Calculate widget display bounds
         const WIDGETS_WITH_SIZE_AS_BOX = new Set([
             'moving_map', 'journey_map', 'moving_journey_map', 'circuit_map',
@@ -289,27 +307,27 @@ class PropertiesPanel {
         const height = widget.properties.height || sizeAsDimension || metadata?.default_height || 50;
 
         const align = widget.properties.align;
-        let displayX = widget.x;
+        let displayX = ownerWidget.x;
         if (align === 'right') {
-            displayX = widget.x - width;
+            displayX = ownerWidget.x - width;
         } else if (align === 'centre' || align === 'center') {
-            displayX = widget.x - width / 2;
+            displayX = ownerWidget.x - width / 2;
         }
 
         const issues = [];
         if (displayX < 0) {
             issues.push(`Left edge: ${displayX}px (${Math.abs(displayX)}px beyond)`);
         }
-        if (widget.y < 0) {
-            issues.push(`Top edge: ${widget.y}px (${Math.abs(widget.y)}px beyond)`);
+        if (ownerWidget.y < 0) {
+            issues.push(`Top edge: ${ownerWidget.y}px (${Math.abs(ownerWidget.y)}px beyond)`);
         }
         if (displayX + width > canvas.width) {
             const overflow = displayX + width - canvas.width;
             issues.push(`Right edge: ${displayX + width}px (${overflow}px beyond ${canvas.width})`);
         }
-        if (widget.y + height > canvas.height) {
-            const overflow = widget.y + height - canvas.height;
-            issues.push(`Bottom edge: ${widget.y + height}px (${overflow}px beyond ${canvas.height})`);
+        if (ownerWidget.y + height > canvas.height) {
+            const overflow = ownerWidget.y + height - canvas.height;
+            issues.push(`Bottom edge: ${ownerWidget.y + height}px (${overflow}px beyond ${canvas.height})`);
         }
 
         if (issues.length === 0) return null;

@@ -1,5 +1,5 @@
 <layout>
-  <composite name="date_and_time" x="260" y="30">
+  <composite name="date_and_time" x="397" y="21">
     <component type="datetime" format="%d/%m/%Y" size="16" align="right" />
     <component type="datetime" y="24" format="%H:%M:%S" size="32" align="right" />
   </composite>
@@ -15,26 +15,22 @@
       <component type="metric" x="70" y="20" align="left" metric="gradient" dp="1" size="26" />
     </translate>
   </translate>
-  <translate x="16" y="160">
+  <translate x="16" y="185">
     <translate>
       <component type="text" size="16" rgb="255,200,0">RPM</component>
-      <component type="metric" y="20" metric="engine_speed" dp="0" size="32" rgb="255,200,0" />
+      <component type="metric" y="20" metric="rpm" dp="0" size="32" rgb="255,200,0" />
     </translate>
-    <translate y="60">
-      <component type="text" size="16" rgb="0,200,255">LEAN (mdeg)</component>
-      <component type="metric" y="20" metric="lean_angle" dp="0" size="32" rgb="0,200,255" />
+    <translate y="80">
+      <component type="text" size="16" rgb="255,100,100">COOLANT TEMP</component>
+      <component type="metric" y="15" metric="coolant" dp="1" size="32" rgb="255,100,100" />
     </translate>
-    <translate y="240">
-      <component type="text" size="16" rgb="0,200,255">PITCH</component>
+    <translate y="160">
+      <component type="text" size="16" rgb="100,255,100">THROTTLE</component>
+      <component type="metric" y="20" metric="throttle" dp="2" size="32" rgb="100,255,100" />
     </translate>
-    <translate y="400">
-      <component type="text" size="16" rgb="255,100,100">INTAKE TEMP</component>
-      <component type="metric" y="20" metric="intake_air_temp" dp="1" size="32" rgb="255,100,100" />
-    </translate>
-    <translate y="460">
-      <component type="text" size="16" rgb="100,255,100">MAF (mg/str)</component>
-      <component type="metric" y="20" metric="mass_air_flow" dp="2" size="32" rgb="100,255,100" />
-    </translate>
+  </translate>
+  <translate x="113" y="185">
+    <component type="chart" y="15" metric="alt" units="metres" seconds="60" samples="256" height="50" textsize="16" filled="false" values="false" bg="0,0,0,170" fill="91,113,146,170" line="255,255,255,170" />
   </translate>
   <translate y="690">
     <component type="msi" metric="speed" textsize="16" needle="0" units="kph" />
@@ -45,10 +41,10 @@
       <component type="text" size="18" align="centre">km/h</component>
     </translate>
     <translate y="260">
-      <component type="bar" width="128" min="-3" max="0" height="40" metric="accl" outline-width="2" bar="255,157,157" h-neg="255,157,157" h-pos="255,157,157" zero="0,0,0,0" />
+      <component type="bar" width="128" min="-3" max="0" height="40" metric="accl.dyn" outline-width="2" bar="255,157,157" h-neg="255,157,157" h-pos="255,157,157" zero="0,0,0,0" />
       <component type="text" x="63" y="11" size="16" align="centre">BRAKE</component>
       <translate x="127">
-        <component type="bar" width="128" min="0" max="3" height="40" metric="accl" outline-width="2" bar="157,157,255" h-neg="157,157,255" h-pos="157,157,255" zero="0,0,0,0" />
+        <component type="bar" width="128" min="0" max="3" height="40" metric="accl.dyn" outline-width="2" bar="157,157,255" h-neg="157,157,255" h-pos="157,157,255" zero="0,0,0,0" />
         <component type="text" x="63" y="11" size="16" align="centre">THROTTLE</component>
       </translate>
     </translate>
@@ -68,6 +64,4 @@
   <translate x="1637" y="828">
     <component type="dirtbike_lean" size="250" metric="lean_angle" file="dirtbike_side.png" max_angle="45" colour="245,239,239" milidegrees="false" />
   </translate>
-  <component type="metric" x="884" y="242" metric="accl" units="G" dp="1" size="16" rgb="255,255,255" outline="0,0,0" outline_width="2" align="left" />
-  <component type="metric" x="1045" y="392" metric="accl.x" units="G" dp="1" size="16" rgb="255,255,255" outline="0,0,0" outline_width="2" align="left" />
 </layout>
