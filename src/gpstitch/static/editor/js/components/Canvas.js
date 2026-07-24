@@ -7,6 +7,7 @@
 const WIDGETS_WITH_SIZE_AS_BOX = new Set([
     'moving_map', 'journey_map', 'moving_journey_map', 'circuit_map',
     'compass', 'compass_arrow', 'asi', 'msi', 'gps_lock_icon', 'icon',
+    'dirtbike', 'dirtbike_lean',
     'cairo_circuit_map', 'cairo_gauge_marker', 'cairo_gauge_round_annotated',
     'cairo_gauge_arc_annotated', 'cairo_gauge_donut'
 ]);
@@ -394,17 +395,19 @@ class Canvas {
             newDisplayY = Math.round(newDisplayY / gridSize) * gridSize;
         }
 
-        // Constrain to canvas bounds
-        newDisplayX = Math.max(0, newDisplayX);
-        newDisplayY = Math.max(0, newDisplayY);
-
         // Use delta-based movement: apply visual movement to original widget position
-        // This works correctly for nested widgets because delta is the same in both coordinate systems
         const deltaX = newDisplayX - this.dragState.startDisplayX;
         const deltaY = newDisplayY - this.dragState.startDisplayY;
 
-        const newX = Math.round(this.dragState.startX + deltaX);
-        const newY = Math.round(this.dragState.startY + deltaY);
+        // Calculate new model position (relative to parent container)
+        let newX = Math.round(this.dragState.startX + deltaX);
+        let newY = Math.round(this.dragState.startY + deltaY);
+
+        // Clamp model position to non-negative values
+        // This is the model-relative position, not the absolute display position,
+        // so clamping here is correct for both top-level and nested (translate) widgets
+        newX = Math.max(0, newX);
+        newY = Math.max(0, newY);
 
         this.state.updateWidget(this.dragState.widgetId, { x: newX, y: newY });
 
